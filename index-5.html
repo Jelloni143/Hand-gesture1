@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DEVELOPER Mr.Hem — AR Holographic Interface</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: 'Rajdhani', sans-serif;
+    touch-action: none;
+    user-select: none;
+  }
+
+  #videoEl {
+    position: absolute;
+    width: 1px; height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #threeCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+  }
+
+  #overlayCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  #title {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  #title .dev {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(10px, 3.2vw, 16px);
+    font-weight: 400;
+    letter-spacing: 0.3em;
+    color: #00e5ff;
+    text-shadow:
+      0 0 8px #00e5ff,
+      0 0 20px #00e5ff,
+      0 0 40px #0088cc;
+    animation: flickerDev 4s infinite;
+  }
+
+  #title .name {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(16px, 5.5vw, 28px);
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    color: #fff;
+    text-shadow:
+      0 0 10px #fff,
+      0 0 25px #00e5ff,
+      0 0 50px #00e5ff,
+      0 0 80px #0055aa;
+    animation: pulseTitle 2.5s ease-in-out infinite;
+  }
+
+  #title .line {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #00e5ff, #fff, #00e5ff, transparent);
+    margin: 4px 0;
+    animation: lineGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes flickerDev {
+    0%,95%,100% { opacity: 1; }
+    96% { opacity: 0.4; }
+    97% { opacity: 1; }
+    98% { opacity: 0.6; }
+  }
+
+  @keyframes pulseTitle {
+    0%,100% { text-shadow: 0 0 10px #fff, 0 0 25px #00e5ff, 0 0 50px #00e5ff, 0 0 80px #0055aa; }
+    50% { text-shadow: 0 0 15px #fff, 0 0 35px #00e5ff, 0 0 70px #00e5ff, 0 0 120px #0055aa; }
+  }
+
+  @keyframes lineGlow {
+    0%,100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  #modeDisplay {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+    transition: all 0.4s ease;
+  }
+
+  #modeDisplay .modeLabel {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(9px, 2.5vw, 13px);
+    letter-spacing: 0.25em;
+    color: #ff6600;
+    text-shadow: 0 0 10px #ff6600, 0 0 25px #ff3300;
+    animation: modeFlicker 3s infinite;
+  }
+
+  #modeDisplay.cubeMode .modeLabel {
+    color: #00ffcc;
+    text-shadow: 0 0 10px #00ffcc, 0 0 25px #00aaff;
+  }
+
+  @keyframes modeFlicker {
+    0%,90%,100%{opacity:1} 91%{opacity:.5} 92%{opacity:1}
+  }
+
+  #gestureHint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+  }
+
+  #gestureHint .hintText {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(10px, 2.8vw, 14px);
+    color: rgba(0,229,255,0.6);
+    text-shadow: 0 0 12px #00e5ff;
+    letter-spacing: 0.2em;
+    animation: hintPulse 2s ease-in-out infinite;
+    margin-bottom: 8px;
+  }
+
+  #gestureHint .subHint {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(9px, 2.2vw, 11px);
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.15em;
+  }
+
+  @keyframes hintPulse {
+    0%,100%{opacity:0.6} 50%{opacity:1}
+  }
+
+  #scanLine {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,229,255,0.4), transparent);
+    z-index: 9;
+    animation: scanMove 4s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes scanMove {
+    0% { top: 0; opacity: 0.8; }
+    100% { top: 100%; opacity: 0.2; }
+  }
+
+  #cornerTL, #cornerTR, #cornerBL, #cornerBR {
+    position: absolute;
+    width: 20px; height: 20px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  #cornerTL { top: 8px; left: 8px; border-top: 1px solid rgba(0,229,255,0.5); border-left: 1px solid rgba(0,229,255,0.5); }
+  #cornerTR { top: 8px; right: 8px; border-top: 1px solid rgba(0,229,255,0.5); border-right: 1px solid rgba(0,229,255,0.5); }
+  #cornerBL { bottom: 8px; left: 8px; border-bottom: 1px solid rgba(0,229,255,0.5); border-left: 1px solid rgba(0,229,255,0.5); }
+  #cornerBR { bottom: 8px; right: 8px; border-bottom: 1px solid rgba(0,229,255,0.5); border-right: 1px solid rgba(0,229,255,0.5); }
+
+  #fpsCounter {
+    position: absolute;
+    top: 90px;
+    right: 12px;
+    z-index: 10;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 10px;
+    color: rgba(0,229,255,0.4);
+    letter-spacing: 0.1em;
+    pointer-events: none;
+  }
+
+  #statusDot {
+    position: absolute;
+    top: 90px;
+    left: 12px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    pointer-events: none;
+  }
+  #statusDot .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #ff3333;
+    box-shadow: 0 0 6px #ff3333;
+    animation: dotBlink 1s infinite;
+  }
+  #statusDot .dot.active {
+    background: #00ff88;
+    box-shadow: 0 0 8px #00ff88;
+    animation: none;
+  }
+  #statusDot .dotLabel {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 9px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.1em;
+  }
+  @keyframes dotBlink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  #loadingScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #000;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  #loadingScreen .loadTitle {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(16px, 5vw, 24px);
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 20px #00e5ff, 0 0 40px #00e5ff;
+    text-align: center;
+  }
+
+  #loadingScreen .loadBar {
+    width: 200px;
+    height: 2px;
+    background: rgba(0,229,255,0.15);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  #loadingScreen .loadFill {
+    height: 100%;
+    background: linear-gradient(90deg, #00e5ff, #ffffff);
+    width: 0%;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px #00e5ff;
+  }
+
+  #loadingScreen .loadText {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    color: rgba(0,229,255,0.5);
+    letter-spacing: 0.3em;
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">
+  <div class="loadTitle">DEVELOPER<br>Mr.Hem</div>
+  <div style="font-family:'Rajdhani',sans-serif;font-size:10px;color:rgba(0,229,255,0.4);letter-spacing:0.3em;">AR HOLOGRAPHIC INTERFACE</div>
+  <div class="loadBar"><div class="loadFill" id="loadFill"></div></div>
+  <div class="loadText" id="loadText">INITIALIZING SYSTEMS...</div>
+</div>
+
+<video id="videoEl" playsinline autoplay muted></video>
+<canvas id="threeCanvas"></canvas>
+<canvas id="overlayCanvas"></canvas>
+
+<div id="title">
+  <div class="dev">DEVELOPER</div>
+  <div class="line"></div>
+  <div class="name">Mr.Hem</div>
+  <div class="line"></div>
+</div>
+
+<div id="cornerTL"></div>
+<div id="cornerTR"></div>
+<div id="cornerBL"></div>
+<div id="cornerBR"></div>
+<div id="scanLine"></div>
+
+<div id="modeDisplay">
+  <div class="modeLabel" id="modeLabelText">⚡ DRAGON ENERGY MODE</div>
+</div>
+
+<div id="gestureHint">
+  <div class="hintText">SHOW YOUR HAND</div>
+  <div class="subHint">PINCH TO CREATE · HOLD TO DRAG · OPEN PALM TO DELETE</div>
+</div>
+
+<div id="fpsCounter">-- FPS</div>
+<div id="statusDot">
+  <div class="dot" id="camDot"></div>
+  <div class="dotLabel">CAM</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// MEDIAPIPE HANDS LOADER
+// ─────────────────────────────────────────────
+const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/';
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+// ─────────────────────────────────────────────
+// GLOBAL STATE
+// ─────────────────────────────────────────────
+const W = window.innerWidth, H = window.innerHeight;
+const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+
+let scene, camera, renderer, clock;
+let overlayCtx, overlayCanvas;
+let videoEl;
+let handResults = null;
+let elements = [];
+let mode = 'dragon'; // 'dragon' | 'cube'
+let gestureHintVisible = true;
+
+// Gesture state
+let isPinching = false;
+let wasPinching = false;
+let pinchPoint = { x: 0, y: 0, z: 0 };
+let dragging = null;
+let dragOffset = { x: 0, y: 0, z: 0 };
+let openPalmDetected = false;
+let lastPinchTime = 0;
+let handTrackPoints = [];
+
+// Mode switch: two-finger swipe not possible without buttons—
+// we'll switch mode by "double pinch" (two quick pinches <300ms apart with no element nearby)
+let modeToggleCooldown = 0;
+
+// FPS
+let fpsFrames = 0, fpsLast = performance.now(), fps = 60;
+
+// AudioContext for sounds
+let audioCtx = null;
+
+function initAudio() {
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+
+function playTone(freq, type, dur, vol) {
+  if (!audioCtx) return;
+  try {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.15, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch(e) {}
+}
+
+// ─────────────────────────────────────────────
+// THREE.JS SETUP
+// ─────────────────────────────────────────────
+function initThree() {
+  const canvas = document.getElementById('threeCanvas');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(DPR);
+  renderer.setClearColor(0x000000, 1);
+  renderer.shadowMap.enabled = false;
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(60, W / H, 0.01, 100);
+  camera.position.set(0, 0, 3);
+
+  clock = new THREE.Clock();
+
+  // Ambient + subtle directional
+  scene.add(new THREE.AmbientLight(0x111122, 1));
+  const dLight = new THREE.DirectionalLight(0x0044ff, 0.3);
+  dLight.position.set(0, 5, 5);
+  scene.add(dLight);
+}
+
+// ─────────────────────────────────────────────
+// OVERLAY CANVAS (hand landmarks)
+// ─────────────────────────────────────────────
+function initOverlay() {
+  overlayCanvas = document.getElementById('overlayCanvas');
+  overlayCanvas.width = W;
+  overlayCanvas.height = H;
+  overlayCtx = overlayCanvas.getContext('2d');
+}
+
+// ─────────────────────────────────────────────
+// ELEMENT FACTORY
+// ─────────────────────────────────────────────
+function createDragonOrb(position) {
+  const group = new THREE.Group();
+  group.position.copy(position);
+
+  // Core orb
+  const coreGeo = new THREE.SphereGeometry(0.13, 16, 16);
+  const coreMat = new THREE.MeshBasicMaterial({
+    color: 0xff4400,
+    transparent: true,
+    opacity: 0.85
+  });
+  const core = new THREE.Mesh(coreGeo, coreMat);
+  group.add(core);
+
+  // Outer glow sphere
+  const glowGeo = new THREE.SphereGeometry(0.20, 12, 12);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xff2200,
+    transparent: true,
+    opacity: 0.18,
+    side: THREE.BackSide
+  });
+  group.add(new THREE.Mesh(glowGeo, glowMat));
+
+  // Energy rings (3 rings)
+  for (let i = 0; i < 3; i++) {
+    const ringGeo = new THREE.TorusGeometry(0.18 + i * 0.06, 0.008, 6, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: i === 0 ? 0xff6600 : i === 1 ? 0xff3300 : 0xffaa00,
+      transparent: true,
+      opacity: 0.7
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.random() * Math.PI;
+    ring.rotation.y = Math.random() * Math.PI;
+    ring.userData.ringIndex = i;
+    ring.userData.rotAxis = new THREE.Vector3(
+      Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
+    ).normalize();
+    ring.userData.rotSpeed = 0.8 + Math.random() * 1.2;
+    group.add(ring);
+  }
+
+  // Fire particles
+  const partCount = 60;
+  const partGeo = new THREE.BufferGeometry();
+  const positions = new Float32Array(partCount * 3);
+  const partData = [];
+  for (let i = 0; i < partCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    const r = 0.1 + Math.random() * 0.15;
+    positions[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
+    positions[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r;
+    positions[i * 3 + 2] = Math.cos(phi) * r;
+    partData.push({
+      speed: 0.003 + Math.random() * 0.005,
+      life: Math.random(),
+      maxLife: 0.5 + Math.random() * 0.5,
+      dir: new THREE.Vector3(
+        (Math.random() - 0.5) * 0.02,
+        0.005 + Math.random() * 0.01,
+        (Math.random() - 0.5) * 0.02
+      )
+    });
+  }
+  partGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const partMat = new THREE.PointsMaterial({
+    color: 0xff6600, size: 0.025, transparent: true, opacity: 0.85,
+    sizeAttenuation: true
+  });
+  const particles = new THREE.Points(partGeo, partMat);
+  particles.userData.partData = partData;
+  particles.userData.isParticles = true;
+  group.add(particles);
+
+  group.userData.type = 'dragon';
+  group.userData.velocity = new THREE.Vector3();
+  group.userData.scale = 1;
+  group.userData.birthTime = clock.getElapsedTime();
+  group.userData.dying = false;
+
+  scene.add(group);
+  return group;
+}
+
+function createCubeTech(position) {
+  const group = new THREE.Group();
+  group.position.copy(position);
+
+  // Wireframe cube
+  const edgesGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(0.28, 0.28, 0.28));
+  const edgesMat = new THREE.LineBasicMaterial({
+    color: 0x00ffcc,
+    transparent: true,
+    opacity: 0.9,
+    linewidth: 1
+  });
+  const wireframe = new THREE.LineSegments(edgesGeo, edgesMat);
+  group.add(wireframe);
+
+  // Inner transparent faces
+  const faceMat = new THREE.MeshBasicMaterial({
+    color: 0x00aaff,
+    transparent: true,
+    opacity: 0.04,
+    side: THREE.DoubleSide
+  });
+  const faceGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+  group.add(new THREE.Mesh(faceGeo, faceMat));
+
+  // Inner energy lines (diagonals)
+  for (let i = 0; i < 4; i++) {
+    const linePts = [
+      new THREE.Vector3(-0.14, -0.14, -0.14),
+      new THREE.Vector3(0.14, 0.14, 0.14)
+    ];
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(
+        (Math.random() - 0.5) * 0.28,
+        (Math.random() - 0.5) * 0.28,
+        -0.14
+      ),
+      new THREE.Vector3(
+        (Math.random() - 0.5) * 0.28,
+        (Math.random() - 0.5) * 0.28,
+        0.14
+      )
+    ]);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.5
+    });
+    group.add(new THREE.Line(lineGeo, lineMat));
+  }
+
+  // Outer glow box
+  const outerGeo = new THREE.BoxGeometry(0.36, 0.36, 0.36);
+  const outerMat = new THREE.MeshBasicMaterial({
+    color: 0x00ffcc,
+    transparent: true,
+    opacity: 0.05,
+    side: THREE.BackSide
+  });
+  group.add(new THREE.Mesh(outerGeo, outerMat));
+
+  // Corner particles
+  const corners = [
+    [-0.14,-0.14,-0.14],[0.14,-0.14,-0.14],
+    [-0.14,0.14,-0.14],[0.14,0.14,-0.14],
+    [-0.14,-0.14,0.14],[0.14,-0.14,0.14],
+    [-0.14,0.14,0.14],[0.14,0.14,0.14]
+  ];
+  const cPosArr = new Float32Array(corners.length * 3);
+  corners.forEach((c, i) => { cPosArr[i*3]=c[0]; cPosArr[i*3+1]=c[1]; cPosArr[i*3+2]=c[2]; });
+  const cGeo = new THREE.BufferGeometry();
+  cGeo.setAttribute('position', new THREE.BufferAttribute(cPosArr, 3));
+  const cMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.035, transparent: true, opacity: 0.9 });
+  group.add(new THREE.Points(cGeo, cMat));
+
+  group.userData.type = 'cube';
+  group.userData.velocity = new THREE.Vector3();
+  group.userData.scale = 1;
+  group.userData.birthTime = clock.getElapsedTime();
+  group.userData.dying = false;
+  group.userData.rotX = 0.4 + Math.random() * 0.4;
+  group.userData.rotY = 0.6 + Math.random() * 0.5;
+
+  scene.add(group);
+  return group;
+}
+
+// Burst death particles
+function createDeathBurst(position, color) {
+  const group = new THREE.Group();
+  group.position.copy(position);
+  const count = 80;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  const data = [];
+  for (let i = 0; i < count; i++) {
+    pos[i*3]=0; pos[i*3+1]=0; pos[i*3+2]=0;
+    data.push({
+      vel: new THREE.Vector3(
+        (Math.random()-0.5)*0.08,
+        (Math.random()-0.5)*0.08,
+        (Math.random()-0.5)*0.08
+      ),
+      life: 1.0
+    });
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color, size: 0.04, transparent: true, opacity: 1, sizeAttenuation: true
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.userData.partData = data;
+  pts.userData.isBurst = true;
+  group.add(pts);
+  group.userData.isBurst = true;
+  group.userData.life = 1.0;
+  scene.add(group);
+  return group;
+}
+
+// ─────────────────────────────────────────────
+// COORDINATE MAPPING
+// ─────────────────────────────────────────────
+function landmarkTo3D(lm) {
+  // MediaPipe: x,y in [0,1], z depth
+  // Mirror x (selfie), map to NDC then to world
+  const nx = -(lm.x - 0.5) * 2; // flip for selfie
+  const ny = -(lm.y - 0.5) * 2;
+  const nz = -lm.z * 2;
+
+  const aspect = W / H;
+  const fovRad = (60 * Math.PI) / 180;
+  const dist = 3;
+  const halfH = Math.tan(fovRad / 2) * dist;
+  const halfW = halfH * aspect;
+
+  return new THREE.Vector3(
+    nx * halfW,
+    ny * halfH,
+    nz * 0.5
+  );
+}
+
+// ─────────────────────────────────────────────
+// GESTURE DETECTION
+// ─────────────────────────────────────────────
+function detectPinch(lms) {
+  const thumb = lms[4];
+  const index = lms[8];
+  const dx = thumb.x - index.x;
+  const dy = thumb.y - index.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  return dist < 0.055;
+}
+
+function detectOpenPalm(lms) {
+  // All 4 fingertips above their MCP joints = open palm
+  const tips = [8, 12, 16, 20];
+  const mcps = [5, 9, 13, 17];
+  let extended = 0;
+  for (let i = 0; i < 4; i++) {
+    if (lms[tips[i]].y < lms[mcps[i]].y) extended++;
+  }
+  return extended >= 3;
+}
+
+function getPinchMidpoint(lms) {
+  const thumb = lms[4];
+  const index = lms[8];
+  return {
+    x: (thumb.x + index.x) / 2,
+    y: (thumb.y + index.y) / 2,
+    z: (thumb.z + index.z) / 2
+  };
+}
+
+function getWristAngle(lms) {
+  const wrist = lms[0];
+  const mid = lms[9];
+  return Math.atan2(mid.y - wrist.y, mid.x - wrist.x);
+}
+
+// ─────────────────────────────────────────────
+// FIND NEAREST ELEMENT
+// ─────────────────────────────────────────────
+function findNearest(pos3D) {
+  let minDist = 0.35, nearest = null;
+  for (const el of elements) {
+    if (el.userData.dying) continue;
+    const d = el.position.distanceTo(pos3D);
+    if (d < minDist) { minDist = d; nearest = el; }
+  }
+  return nearest;
+}
+
+// ─────────────────────────────────────────────
+// DRAW HAND SKELETON ON OVERLAY
+// ─────────────────────────────────────────────
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],
+  [0,17]
+];
+
+function drawHand(lms, isPinch) {
+  const ctx = overlayCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!lms || lms.length === 0) return;
+
+  const pts = lms.map(lm => ({
+    x: (1 - lm.x) * W,  // mirror
+    y: lm.y * H
+  }));
+
+  // Draw connections
+  ctx.strokeStyle = isPinch ? 'rgba(255,100,0,0.6)' : 'rgba(0,229,255,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = isPinch ? '#ff6600' : '#00e5ff';
+  ctx.shadowBlur = 8;
+  for (const [a, b] of HAND_CONNECTIONS) {
+    ctx.beginPath();
+    ctx.moveTo(pts[a].x, pts[a].y);
+    ctx.lineTo(pts[b].x, pts[b].y);
+    ctx.stroke();
+  }
+
+  // Draw landmark dots
+  for (let i = 0; i < pts.length; i++) {
+    const isTip = [4,8,12,16,20].includes(i);
+    const r = isTip ? 5 : 3;
+    ctx.beginPath();
+    ctx.arc(pts[i].x, pts[i].y, r, 0, Math.PI * 2);
+    ctx.fillStyle = isTip
+      ? (isPinch && (i === 4 || i === 8) ? '#ff6600' : 'rgba(255,255,255,0.9)')
+      : 'rgba(0,229,255,0.7)';
+    ctx.shadowColor = isTip ? '#00e5ff' : 'transparent';
+    ctx.shadowBlur = isTip ? 10 : 0;
+    ctx.fill();
+  }
+
+  // Pinch visual
+  if (isPinch) {
+    const cx = (pts[4].x + pts[8].x) / 2;
+    const cy = (pts[4].y + pts[8].y) / 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,150,0,0.8)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#ff6600';
+    ctx.shadowBlur = 15;
+    ctx.stroke();
+  }
+}
+
+// ─────────────────────────────────────────────
+// UPDATE ELEMENTS
+// ─────────────────────────────────────────────
+function updateElements(dt, t) {
+  for (let i = elements.length - 1; i >= 0; i--) {
+    const el = elements[i];
+
+    if (el.userData.isBurst) {
+      el.userData.life -= dt * 1.5;
+      if (el.userData.life <= 0) {
+        scene.remove(el);
+        elements.splice(i, 1);
+        continue;
+      }
+      const pts = el.children[0];
+      if (pts.userData && pts.userData.isBurst) {
+        const pos = pts.geometry.attributes.position.array;
+        pts.material.opacity = el.userData.life;
+        pts.userData.partData.forEach((p, j) => {
+          p.vel.y += 0.001; // gravity drift
+          pos[j*3]   += p.vel.x;
+          pos[j*3+1] += p.vel.y;
+          pos[j*3+2] += p.vel.z;
+        });
+        pts.geometry.attributes.position.needsUpdate = true;
+      }
+      continue;
+    }
+
+    if (el.userData.dying) {
+      el.userData.dyingTime = (el.userData.dyingTime || 0) + dt;
+      el.scale.multiplyScalar(0.94);
+      if (el.userData.dyingTime > 0.4) {
+        const color = el.userData.type === 'dragon' ? 0xff4400 : 0x00ffcc;
+        createDeathBurst(el.position.clone(), color);
+        scene.remove(el);
+        elements.splice(i, 1);
+        playTone(200, 'sawtooth', 0.4, 0.12);
+        continue;
+      }
+      continue;
+    }
+
+    // Physics: inertia
+    if (!el.userData.isDragging) {
+      el.userData.velocity.multiplyScalar(0.88);
+      el.position.add(el.userData.velocity);
+    }
+
+    // Birth scale-in
+    const age = t - el.userData.birthTime;
+    if (age < 0.3) {
+      const s = age / 0.3;
+      el.scale.setScalar(s * el.userData.scale);
+    } else {
+      el.scale.setScalar(el.userData.scale);
+    }
+
+    if (el.userData.type === 'dragon') {
+      // Rotate rings
+      el.children.forEach(child => {
+        if (child.userData && child.userData.rotAxis) {
+          child.rotateOnAxis(child.userData.rotAxis, child.userData.rotSpeed * dt);
+        }
+      });
+      // Pulse core
+      const core = el.children[0];
+      const pulse = 1 + Math.sin(t * 4 + el.userData.birthTime) * 0.08;
+      core.scale.setScalar(pulse);
+
+      // Animate fire particles
+      el.children.forEach(child => {
+        if (child.userData && child.userData.isParticles) {
+          const pos = child.geometry.attributes.position.array;
+          child.userData.partData.forEach((p, j) => {
+            p.life += dt * p.speed * 15;
+            if (p.life > p.maxLife) {
+              p.life = 0;
+              const theta = Math.random() * Math.PI * 2;
+              const phi = Math.random() * Math.PI;
+              const r = 0.05;
+              pos[j*3]   = Math.sin(phi)*Math.cos(theta)*r;
+              pos[j*3+1] = Math.sin(phi)*Math.sin(theta)*r;
+              pos[j*3+2] = Math.cos(phi)*r;
+            } else {
+              pos[j*3]   += p.dir.x;
+              pos[j*3+1] += p.dir.y;
+              pos[j*3+2] += p.dir.z;
+            }
+          });
+          child.geometry.attributes.position.needsUpdate = true;
+        }
+      });
+
+    } else if (el.userData.type === 'cube') {
+      el.rotation.x += el.userData.rotX * dt;
+      el.rotation.y += el.userData.rotY * dt;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// PROCESS HAND GESTURES
+// ─────────────────────────────────────────────
+function processGestures() {
+  if (!handResults || !handResults.multiHandLandmarks || handResults.multiHandLandmarks.length === 0) {
+    handTrackPoints = [];
+    isPinching = false;
+    openPalmDetected = false;
+
+    // Hide hint after first hand detection
+    return;
+  }
+
+  document.getElementById('gestureHint').style.opacity = '0';
+  document.getElementById('camDot').classList.add('active');
+
+  const lms = handResults.multiHandLandmarks[0];
+  handTrackPoints = lms;
+
+  wasPinching = isPinching;
+  isPinching = detectPinch(lms);
+  openPalmDetected = detectOpenPalm(lms);
+
+  const pinchMid = getPinchMidpoint(lms);
+  const pos3D = landmarkTo3D({ x: pinchMid.x, y: pinchMid.y, z: pinchMid.z });
+
+  // UPDATE PINCH POINT
+  pinchPoint.x += (pos3D.x - pinchPoint.x) * 0.4;
+  pinchPoint.y += (pos3D.y - pinchPoint.y) * 0.4;
+  pinchPoint.z += (pos3D.z - pinchPoint.z) * 0.4;
+  const smoothPos = new THREE.Vector3(pinchPoint.x, pinchPoint.y, pinchPoint.z);
+
+  // DRAG
+  if (isPinching && dragging) {
+    dragging.position.set(
+      smoothPos.x + dragOffset.x,
+      smoothPos.y + dragOffset.y,
+      smoothPos.z + dragOffset.z
+    );
+    dragging.userData.isDragging = true;
+    dragging.userData.velocity.set(0, 0, 0);
+
+    // Wrist rotation → rotate element
+    const wristAngle = getWristAngle(lms);
+    dragging.rotation.z += (wristAngle - (dragging.userData.lastWristAngle || wristAngle)) * 0.5;
+    dragging.userData.lastWristAngle = wristAngle;
+  }
+
+  // PINCH START
+  if (isPinching && !wasPinching) {
+    const nearest = findNearest(smoothPos);
+    if (nearest) {
+      // Start dragging
+      dragging = nearest;
+      dragOffset.x = nearest.position.x - smoothPos.x;
+      dragOffset.y = nearest.position.y - smoothPos.y;
+      dragOffset.z = nearest.position.z - smoothPos.z;
+      dragging.userData.isDragging = true;
+      dragging.userData.lastWristAngle = getWristAngle(lms);
+
+      // Double-pinch check (duplicate)
+      const now = performance.now();
+      if (now - lastPinchTime < 350) {
+        duplicateElement(nearest);
+      }
+      lastPinchTime = now;
+
+    } else {
+      // No element nearby → CREATE
+      const now = performance.now();
+      const timeSinceLast = now - lastPinchTime;
+      lastPinchTime = now;
+
+      // Mode switch: double pinch in air (no element) quickly
+      if (timeSinceLast < 400 && modeToggleCooldown < performance.now()) {
+        mode = mode === 'dragon' ? 'cube' : 'dragon';
+        const modeEl = document.getElementById('modeDisplay');
+        const modeLabel = document.getElementById('modeLabelText');
+        if (mode === 'dragon') {
+          modeEl.className = '';
+          modeLabel.textContent = '⚡ DRAGON ENERGY MODE';
+        } else {
+          modeEl.className = 'cubeMode';
+          modeLabel.textContent = '◈ CUBE TECH MODE';
+        }
+        modeToggleCooldown = performance.now() + 1000;
+        playTone(880, 'sine', 0.2, 0.1);
+        return;
+      }
+
+      // Create element
+      const spawnPos = smoothPos.clone();
+      spawnPos.z = 0;
+      let el;
+      if (mode === 'dragon') {
+        el = createDragonOrb(spawnPos);
+        playTone(300, 'sawtooth', 0.3, 0.12);
+      } else {
+        el = createCubeTech(spawnPos);
+        playTone(600, 'square', 0.2, 0.1);
+      }
+      elements.push(el);
+      dragging = el;
+      dragOffset.x = dragOffset.y = dragOffset.z = 0;
+      el.userData.isDragging = true;
+      el.userData.lastWristAngle = getWristAngle(lms);
+    }
+  }
+
+  // PINCH END
+  if (!isPinching && wasPinching && dragging) {
+    dragging.userData.isDragging = false;
+    dragging.userData.velocity.set(
+      (smoothPos.x - (dragging.userData.lastPos?.x || smoothPos.x)) * 0.3,
+      (smoothPos.y - (dragging.userData.lastPos?.y || smoothPos.y)) * 0.3,
+      0
+    );
+    dragging = null;
+  }
+
+  if (dragging) {
+    dragging.userData.lastPos = smoothPos.clone();
+  }
+
+  // OPEN PALM → delete nearest
+  if (openPalmDetected) {
+    const wrist3D = landmarkTo3D(lms[0]);
+    const nearest = findNearest(wrist3D);
+    if (nearest && !nearest.userData.dying) {
+      nearest.userData.dying = true;
+    }
+  }
+
+  // TWO-HAND SCALE (if second hand present)
+  if (handResults.multiHandLandmarks.length >= 2 && dragging) {
+    const lms2 = handResults.multiHandLandmarks[1];
+    const mid2 = getPinchMidpoint(lms2);
+    const p2 = landmarkTo3D({ x: mid2.x, y: mid2.y, z: mid2.z });
+    const dist = smoothPos.distanceTo(p2);
+    const targetScale = Math.max(0.3, Math.min(3.0, dist * 3));
+    dragging.userData.scale += (targetScale - dragging.userData.scale) * 0.08;
+  }
+
+  drawHand(lms, isPinching);
+}
+
+function duplicateElement(el) {
+  if (elements.length >= 10) return;
+  const offset = new THREE.Vector3(
+    (Math.random() - 0.5) * 0.4,
+    (Math.random() - 0.5) * 0.4,
+    0
+  );
+  let clone;
+  if (el.userData.type === 'dragon') {
+    clone = createDragonOrb(el.position.clone().add(offset));
+  } else {
+    clone = createCubeTech(el.position.clone().add(offset));
+  }
+  clone.userData.scale = el.userData.scale;
+  elements.push(clone);
+  playTone(440, 'triangle', 0.25, 0.1);
+}
+
+// ─────────────────────────────────────────────
+// RENDER LOOP
+// ─────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.getElapsedTime();
+
+  processGestures();
+  updateElements(dt, t);
+
+  renderer.render(scene, camera);
+
+  // FPS
+  fpsFrames++;
+  const now = performance.now();
+  if (now - fpsLast > 1000) {
+    fps = Math.round(fpsFrames * 1000 / (now - fpsLast));
+    document.getElementById('fpsCounter').textContent = fps + ' FPS';
+    fpsFrames = 0;
+    fpsLast = now;
+  }
+}
+
+// ─────────────────────────────────────────────
+// MEDIAPIPE HANDS SETUP
+// ─────────────────────────────────────────────
+async function initMediaPipe() {
+  videoEl = document.getElementById('videoEl');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'user',
+        width: { ideal: 320 },
+        height: { ideal: 240 },
+        frameRate: { ideal: 30 }
+      }
+    });
+    videoEl.srcObject = stream;
+    await new Promise(r => videoEl.onloadedmetadata = r);
+    videoEl.play();
+    document.getElementById('camDot').classList.add('active');
+  } catch(e) {
+    console.warn('Camera error:', e);
+    document.getElementById('gestureHint').querySelector('.hintText').textContent = 'CAMERA ACCESS NEEDED';
+    return;
+  }
+
+  // Load MediaPipe scripts
+  setLoadText('LOADING MEDIAPIPE...', 50);
+  await loadScript(MEDIAPIPE_CDN + 'hands.js');
+  setLoadText('CALIBRATING VISION...', 75);
+
+  const hands = new Hands({
+    locateFile: (file) => MEDIAPIPE_CDN + file
+  });
+
+  hands.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 0, // 0 = lite, faster on mobile
+    minDetectionConfidence: 0.65,
+    minTrackingConfidence: 0.55
+  });
+
+  hands.onResults(results => {
+    handResults = results;
+    if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+      overlayCtx.clearRect(0, 0, W, H);
+    }
+  });
+
+  // Camera loop using requestAnimationFrame
+  let frameCount = 0;
+  async function sendFrame() {
+    frameCount++;
+    if (frameCount % 2 === 0) { // process every 2nd frame on mobile
+      if (videoEl.readyState >= 2) {
+        await hands.send({ image: videoEl });
+      }
+    }
+    requestAnimationFrame(sendFrame);
+  }
+  sendFrame();
+}
+
+// ─────────────────────────────────────────────
+// LOADING
+// ─────────────────────────────────────────────
+function setLoadText(msg, pct) {
+  document.getElementById('loadText').textContent = msg;
+  document.getElementById('loadFill').style.width = pct + '%';
+}
+
+async function main() {
+  setLoadText('INITIALIZING RENDERER...', 10);
+  initThree();
+  initOverlay();
+
+  setLoadText('ACTIVATING CAMERA...', 25);
+  await initMediaPipe();
+
+  setLoadText('SYSTEM ONLINE', 100);
+  await new Promise(r => setTimeout(r, 600));
+
+  // Hide loading screen
+  const ls = document.getElementById('loadingScreen');
+  ls.style.transition = 'opacity 0.8s ease';
+  ls.style.opacity = '0';
+  setTimeout(() => ls.style.display = 'none', 800);
+
+  // Start render loop
+  clock.start();
+  animate();
+
+  // Tap to init audio
+  document.addEventListener('touchstart', () => {
+    if (!audioCtx) initAudio();
+  }, { once: true });
+}
+
+main();
+</script>
+</body>
+</html>
